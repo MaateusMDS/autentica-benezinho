@@ -1,6 +1,7 @@
 package br.com.fiap.authentication.model;
 
 import br.com.fiap.pessoa.model.Pessoa;
+import jakarta.persistence.*;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -9,15 +10,59 @@ import java.util.Set;
 /**
  * É o usuário de uma determinada pessoa nos sistemas da empresa
  */
+@Entity
+@Table(
+        name = "TB_USER",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "UK_EMAIL",
+                        columnNames = "EMAIL"
+                )
+        }
+)
+
 public class User {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_USER")
+    @SequenceGenerator(name = "SQ_USER", sequenceName = "SQ_USER", initialValue = 1, allocationSize = 1)
+    @Column(name = "ID_USER")
     private Long id;
 
+    @Column(name = "EMAIL")
     private String email;
 
+    @Column(name = "PASSWORD")
     private String password;
 
+
+    @ManyToOne(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(
+            name = "ID_PESSOA",
+            referencedColumnName = "ID_PESSOA",
+            foreignKey = @ForeignKey(name = "FK_USER_PESSOA")
+    )
     private Pessoa pessoa;
 
+
+    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "TB_USER_PROFILE",
+            joinColumns = {
+                    @JoinColumn(
+                            name = "ID_USER",
+                            referencedColumnName = "ID_USER",
+                            foreignKey = @ForeignKey(name = "FK_USER_PROFILE")
+                    )
+            },
+            inverseJoinColumns = {
+                    @JoinColumn(
+                            name = "ID_PROFILE",
+                            referencedColumnName = "ID_PROFILE",
+                            foreignKey = @ForeignKey(name = "FK_PROFILE_USER")
+                    )
+            }
+    )
     private Set<Profile> profiles = new LinkedHashSet<>();
 
     public User() {
