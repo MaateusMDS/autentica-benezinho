@@ -1,80 +1,74 @@
 package br.com.fiap.pessoa.model;
 
-import java.time.LocalDate;
+import jakarta.persistence.*;
+
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
+@Entity
+@Table(
+        name = "TB_PESSOA_JURIDICA",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "UK_CNPJ",
+                        columnNames = "NR_CNPJ"
+                )
+        }
+)
+@DiscriminatorValue("PJ")
+public class PessoaJuridica extends Pessoa {
 
-public class PessoaFisica extends Pessoa {
-    private String CPF;
-    private Sexo sexo;
-    private Set<PessoaFisica> filhos = new LinkedHashSet<>(); //Os meus filhos
+    @Column(name = "NR_CNPJ")
+    private String CNPJ;
+
+    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "TB_SOCIOS",
+            joinColumns = {
+                    @JoinColumn(
+                            name = "ID_EMPRESA",
+                            referencedColumnName = "ID_PESSOA",
+                            foreignKey = @ForeignKey(name = "FK_EMPRESA")
+                    )
+            },
+            inverseJoinColumns = {
+                    @JoinColumn(
+                            name = "ID_SOCIO",
+                            referencedColumnName = "ID_PESSOA",
+                            foreignKey = @ForeignKey(name = "FK_SOCIO")
+                    )
+            }
+    )
+    private Set<Pessoa> socios = new LinkedHashSet<>();
 
 
-    public PessoaFisica() {
+
+
+    public String getCNPJ() {
+        return CNPJ;
     }
-    public PessoaFisica(Long id, String nome, LocalDate nascimento, String CPF, Sexo sexo, Set<PessoaFisica> filhos) {
-        super(id, nome, nascimento);
-        this.CPF = CPF;
-        this.sexo = sexo;
-        this.filhos = filhos;
-    }
-
-    /**
-     * Método para adicionar um filho para a pessoa
-     * <p>
-     * Aqui eu, ou seja, this (PessoaFisica) é pai ou mãe.
-     * O atributo "filhos" é o conjunto de filhos que eu tenho.
-     *
-     * @param filho
-     * @return PessoaFisica
-     */
-    public PessoaFisica addFilho(PessoaFisica filho) {
-        if (filho.equals(this)) throw new RuntimeException("Eu não posso ser ao mesmo tempo pai e filho");
-        //Adiciono um filho meu
-        this.filhos.add(filho);
+    public PessoaJuridica setCNPJ(String CNPJ) {
+        this.CNPJ = CNPJ;
         return this;
     }
 
-    /**
-     * Método para remover um filho da pessoa
-     *
-     * @param filho
-     * @return PessoaFisica
-     */
-    public PessoaFisica removeFilho(PessoaFisica filho) {
-        this.filhos.remove(filho);
+    public Set<Pessoa> getSocios() {
+        return Collections.unmodifiableSet(socios);
+    }
+
+    public PessoaJuridica addSocio(Pessoa pessoa) {
+        if (Objects.nonNull(pessoa)) {
+            if (pessoa.equals(this)) throw new RuntimeException("Eu não posso ser o meu próprio sócio");
+            this.socios.add(pessoa);
+        }
         return this;
     }
 
-    public String getCPF() {
-        return CPF;
-    }
-
-    public PessoaFisica setCPF(String CPF) {
-        this.CPF = CPF;
+    public PessoaJuridica removerSocio(Pessoa pessoa) {
+        this.socios.remove(pessoa);
         return this;
     }
-
-
-    public Sexo getSexo() {
-        return sexo;
-    }
-
-    public PessoaFisica setSexo(Sexo sexo) {
-        this.sexo = sexo;
-        return this;
-    }
-
-    /**
-     * Getter imutável para a listagem de filhos
-     *
-     * @return
-     */
-    public Set<PessoaFisica> getFilhos() {
-        return Collections.unmodifiableSet(filhos);
-    }
-
 
     @Override
     public String toString() {
@@ -82,9 +76,8 @@ public class PessoaFisica extends Pessoa {
                 "id=" + id +
                 ",  nome='" + nome + '\'' +
                 ",  nascimento=" + nascimento + '\'' +
-                ",  CPF='" + CPF + '\'' +
-                ",  sexo=" + sexo +
-                ",  filhos=" + filhos +
+                ",  CNPJ='" + CNPJ + '\'' +
+                ",  socios=" + socios +
                 " } ";
     }
 }
