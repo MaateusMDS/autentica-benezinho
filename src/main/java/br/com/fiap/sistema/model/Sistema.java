@@ -1,143 +1,120 @@
-package br.com.fiap;
+package br.com.fiap.sistema.model;
 
-import br.com.fiap.authentication.model.Profile;
-import br.com.fiap.authentication.model.Role;
-import br.com.fiap.authentication.model.User;
-import br.com.fiap.pessoa.model.PessoaFisica;
-import br.com.fiap.pessoa.model.PessoaJuridica;
-import br.com.fiap.pessoa.model.Sexo;
-import br.com.fiap.sistema.model.Sistema;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.Persistence;
+import br.com.fiap.pessoa.model.Pessoa;
+import jakarta.persistence.*;
 
-import javax.swing.*;
-import java.sql.SQLOutput;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Random;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
-public class Main {
-    public static void main(String[] args) {
-
-        EntityManagerFactory factory = Persistence.createEntityManagerFactory("maria-db");
-        EntityManager manager = factory.createEntityManager();
-
-        var bene = new PessoaFisica();
-
-        bene.setCPF(geraCpf())
-                .setSexo(Sexo.MASCULINO)
-                .setNome("Benefrancis do Nascimento")
-                .setNascimento(LocalDate.of(1977, 3, 8));
-
-        var holding = new PessoaJuridica();
-        holding.addSocio(bene)
-                .setCNPJ(geraCNPJ())
-                .setNome("Holding Benezinho")
-                .setNascimento(LocalDate.now().minusYears(new Random().nextInt(99)));
-
-
-        Sistema bank = new Sistema("Banco Benezinho", "BBANC");
-        bank.addResponsavel(holding);
-
-        Role abrirCaixaBanco = new Role();
-        abrirCaixaBanco.setSistema(bank)
-                .setNome("OPEN_CAIXA")
-                .setDescricao("Abrir o caixa do Banco");
-
-        Role fecharCaixaBanco = new Role();
-        fecharCaixaBanco.setSistema(bank)
-                .setNome("CLOSE_CAIXA")
-                .setDescricao("Fechar o caixa do Banco");
-
-        Profile gerenteBancario = new Profile();
-        gerenteBancario.setNome("GERENTE_BANCARIO")
-                .addRole(abrirCaixaBanco)
-                .addRole(fecharCaixaBanco);
-
-
-        Sistema mercado = new Sistema("Supermercados Benezinho", "BMARCK");
-        mercado.addResponsavel(holding);
-
-        Role abrirCaixaMercado = new Role();
-        abrirCaixaMercado.setSistema(mercado)
-                .setNome("OPEN_CAIXA")
-                .setDescricao("Abrir o caixa do Mercado");
-
-        Role fecharCaixaMercado = new Role();
-        fecharCaixaMercado.setSistema(mercado)
-                .setNome("CLOSE_CAIXA")
-                .setDescricao("Fechar o caixa do Mercado");
-
-        Profile gerenteDeMercado = new Profile();
-        gerenteDeMercado.setNome("GERENTE_DE_MERCADO")
-                .addRole(fecharCaixaMercado)
-                .addRole(abrirCaixaMercado);
-
-        User benefrancis = new User();
-        benefrancis.setPessoa(bene)
-                .setEmail("benefrancis@holding.com")
-                .setPassword("root")
-                .addPerfil(gerenteBancario)
-                .addPerfil(gerenteDeMercado);
-
-
-        try {
-            manager.getTransaction().begin();
-            manager.persist(benefrancis);
-            manager.getTransaction().commit();
-
-
-            //Métodos para consultar aqui:
-            findAll(manager);
-
-            findById(manager);
-
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(null,
-                    """
-                            Erro na persistência!
-
-                            Confira se todas as classes estão anotadas corretamente!
-
-                            veja detalhes no console..."""
-
-            );
-            e.printStackTrace();
-        } finally {
-            manager.close();
-            factory.close();
-            System.out.println(benefrancis);
+@Entity
+@Table(
+        name = "TB_SISTEMA",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "UK_SISTEMA",
+                        columnNames = "SG_SISTEMA"
+                )
         }
+)
+public class Sistema {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "SQ_SISTEMA")
+    @SequenceGenerator(name = "SQ_SISTEMA", sequenceName = "SQ_SISTEMA", allocationSize = 1, initialValue = 1)
+    @Column(name = "ID_SISTEMA")
+    private Long id;
+
+    @Column(name = "NM_SISTEMA")
+    private String nome;
+
+    @Column(name = "SG_SISTEMA")
+    private String sigla;
+
+    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinTable(
+            name = "TB_RESPONSAVEIS",
+            joinColumns = {
+                    @JoinColumn(
+                            name = "ID_SISTEMA",
+                            referencedColumnName = "ID_SISTEMA",
+                            foreignKey = @ForeignKey(name = "FK_SISTEMA")
+                    )
+            },
+            inverseJoinColumns = {
+                    @JoinColumn(
+                            name = "ID_RESPONSAVEL",
+                            referencedColumnName = "ID_PESSOA",
+                            foreignKey = @ForeignKey(name = "FK_RESPONSAVEL")
+                    )
+            }
+    )
+    private Set<Pessoa> responsaveis = new LinkedHashSet<>();
+
+
+    public Sistema() {
     }
 
-    private static void findById(EntityManager manager) {
-        Long id = Long.valueOf(JOptionPane.showInputDialog("Id do usuário"));
-        User user = manager.find(User.class, id);
-        System.out.println(user);
+    public Sistema(String nome, String sigla) {
+        this.nome = nome;
+        this.sigla = sigla;
     }
 
-    private static void findAll(EntityManager manager) {
-        String jpql = "From User";
-        List list = manager.createQuery(jpql).getResultList();
-        list.forEach(System.out::println);
+    public Sistema(Long id, String nome, String sigla, Set<Pessoa> responsaveis) {
+        this.id = id;
+        this.nome = nome;
+        this.sigla = sigla;
+        this.responsaveis = responsaveis;
     }
 
-    private static String geraCpf() {
-        var sorteio = new Random();
-        var digito = sorteio.nextLong(99);
-        var numero = sorteio.nextLong(999999999);
-        var cpf = String.valueOf(numero) + "-" + String.valueOf(digito);
-        return cpf;
+    public Sistema addResponsavel(Pessoa pessoa) {
+        this.responsaveis.add(pessoa);
+        return this;
     }
 
-    private static String geraCNPJ() {
-        var sorteio = new Random();
-        var digito = sorteio.nextLong(99);
-        var numero = sorteio.nextLong(999999999);
-        var cpf = String.valueOf(numero) + "/0001-" + String.valueOf(digito);
-        return cpf;
+    public Sistema removeResponsavel(Pessoa pessoa) {
+        this.responsaveis.remove(pessoa);
+        return this;
+    }
+
+    public Set<Pessoa> getResponsaveis() {
+        return Collections.unmodifiableSet(this.responsaveis);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Sistema setId(Long id) {
+        this.id = id;
+        return this;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public Sistema setNome(String nome) {
+        this.nome = nome;
+        return this;
+    }
+
+    public String getSigla() {
+        return sigla;
+    }
+
+    public Sistema setSigla(String sigla) {
+        this.sigla = sigla;
+        return this;
+    }
+
+    @Override
+    public String toString() {
+        return "Sistema{" +
+                "id=" + id +
+                ", nome='" + nome + '\'' +
+                ", sigla='" + sigla + '\'' +
+                ", responsaveis=" + responsaveis +
+                '}';
     }
 }
